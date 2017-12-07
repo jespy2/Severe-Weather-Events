@@ -1,0 +1,432 @@
+<center> <h1>Corsera Data Science Specialization
+
+Reproducible Research</h1> </center>
+
+<center> <h2>Course Project 2</h2> </center>
+
+***
+
+<center> <h3>Exploration of the NOAA Storm Database & Severe Weather Events</h3></center>
+
+****
+
+##1. Introduction
+
+This is the final project for the Reproducible Research online course that is part of the [Corsera Data Science specialization.](https://www.coursera.org/specializations/jhu-data-science)
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+
+##2. Data
+
+The data for this assignment come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. You can download the file from the course web site:
+
+* [Storm Data [47Mb]](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2)
+
+There is also some documentation of the database available. Here you will find how some of the variables are constructed/defined.
+
+* National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+
+* National Climatic Data Center Storm Events [FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
+
+The events in the database start in the year 1950 and end in November 2011. In the earlier years of the database there are generally fewer events recorded, most likely due to a lack of good records. More recent years should be considered more complete.
+
+##3. Assignment
+
+The basic goal of this assignment is to explore the NOAA Storm Database and answer some basic questions about severe weather events. You must use the database to answer the questions below and show the code for your entire analysis. Your analysis can consist of tables, figures, or other summaries. You may use any R package you want to support your analysis.
+
+**Questions**
+
+Your data analysis must address the following questions:
+
+1. Across the United States, which types of events (as indicated in the **EVTYPE** variable) are most harmful with respect to population health?
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+Consider writing your report as if it were to be read by a government or municipal manager who might be responsible for preparing for severe weather events and will need to prioritize resources for different types of events. However, there is no need to make any specific recommendations in your report.
+
+*Note:  The assignment required use of a specific layout.  This document deviates from that element of the project. I am using this document to explore different ways of presenting my results using markdown, both in terms of layout and content.  If you wish to see the document that I turned in as my final project, it can be found [here at RPubs.com](http://rpubs.com/jespy/336982)*
+
+##4. Data Processing
+###**4.1. Loading the libraries and data**
+````{r echo=TRUE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(gridExtra)
+library(knitr)
+````
+````{r echo=TRUE, cache=TRUE}
+URL<-("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2")
+download.file(URL, "NOAA_Data.csv.bz2")
+NOAA.Data<-read.csv("NOAA_Data.csv.bz2")
+colnumb<-c(2,8,23,24,25,26,27,28)
+NOAA.Data<-NOAA.Data[,colnumb]
+````
+
+####**4.2 Question #1: Across the United States, which types of events (as indicated in the *EVTYPE* variable) are most harmful with respect to population health?**
+
+In order to answer this question, I explored the data by first finding the means of fatalities and injuries per event type, and then by finding the sums.
+
+First step, create a dataset that retains only the needed variables and eliminates observations before 1996 when data first included all of the storm event types.  For example, between 1950 and 1954, tornadoes were the only storm type recorded to this database.  As a result, tornado activity dominates and skews the results of the following analysis when the full dataset is used.
+
+**Truncated data set to only hold observations from 1996 and later**
+````{r echo=TRUE, warning=FALSE}
+##Creating dataframe that contains *only* date of event, event type, 
+##number of fatalities and number of injuries
+harmcol<-c(1, 2, 3, 4)
+most.harm<-NOAA.Data[,harmcol]
+##Clean Date and create data set for 1996 and later
+most.harm$Date<-as.Date(most.harm$BGN_DATE, format = "%m/%d/%Y")
+most.harm$Year<-year(most.harm$Date)
+most.harm<-filter(most.harm, Year>1995)
+````
+
+
+**Evaluating Means and Sums**
+````{r echo=TRUE}
+###Exploring the mean of injuries/fatalities for weather events
+##creating a new dataframe with the means of injuries/fatalities
+mean.fatalities<-most.harm %>%
+  group_by(EVTYPE) %>%
+  summarize(avg.fatalities = mean(FATALITIES))
+
+mean.injuries<-most.harm %>%
+  group_by(EVTYPE) %>%
+  summarize(avg.injuries = mean(INJURIES))
+
+##Creating variables to track ranking of injuries & fatalities in dataframe
+mean.fatalities$fatal.rank<-rank(-mean.fatalities$avg.fatalities, ties.method = "first")
+mean.injuries$injure.rank<-rank(-mean.injuries$avg.injuries, ties.method = "first")
+
+##ordering rows by fatalities ranking
+top10.fatal<-mean.fatalities %>%
+  filter(fatal.rank<11) %>%
+  arrange(fatal.rank)
+
+##ordering rows by injuries ranking
+top10.injure<-mean.injuries %>%
+  filter(injure.rank<11) %>%
+  arrange(injure.rank)
+
+
+###Exploring the sum of injuries/fatalities for weather events
+##creating a new dataframe with the sum of injuries/fatalities
+sum.fatalities<-most.harm %>%
+  group_by(EVTYPE) %>%
+  summarize(total.fatalities = sum(FATALITIES))
+
+sum.injuries<-most.harm %>%
+  group_by(EVTYPE) %>%
+  summarize(total.injuries = sum(INJURIES))
+
+##Creating variables to track ranking of injuries & fatalities in dataframe
+sum.fatalities$fatal.rank<-rank(-sum.fatalities$total.fatalities, ties.method = "first")
+sum.injuries$injure.rank<-rank(-sum.injuries$total.injuries, ties.method = "first")
+
+##ordering rows by fatalities ranking
+top10.fatal.sum<-sum.fatalities %>%
+  filter(fatal.rank<11) %>%
+  arrange(fatal.rank)
+
+
+##ordering rows by injuries ranking
+top10.injure.sum<-sum.injuries %>%
+  filter(injure.rank<11) %>%
+  arrange(injure.rank)
+````
+
+
+####**4.3 Question #2: Across the United States, which types of events have the greatest economic consequences?**
+
+As with the first question, I explored the data by first finding the means of property and crop damage per event type, and then by finding the sums.
+
+First step, create a dataset that retains only the needed variables and eliminates observations before 1996 (as explained above).
+````{r echo=TRUE}
+##Creating dataframe that contains *only* date of event, event type, 
+##and columns describing property and crop damage
+damcol<-c(1,2,5,6,7,8)
+damage<-(NOAA.Data[,damcol])
+##Clean Date and create data set for 1996 and later
+damage$Date<-as.Date(damage$BGN_DATE, format = "%m/%d/%Y")
+damage$Year<-year(damage$Date)
+damage<-filter(damage, Year>1995)
+````
+
+
+**Tidying the data**
+Before continuing, the columns describing cost in dollars need to be tidied.  The property damage (PROPDMG) and crop damage (CROPDMG) variables are each modified by a variable that describe the exponential mulitiplier (PROPDMGEXP and CROPDMGEXP, respectively).  Here are the values for those variables:
+````{r echo=TRUE}
+##Print unique values of PROPDMGEXP
+unique (damage$PROPDMGEXP)
+##Print unique values of CROPDMGEXP
+unique (damage$CROPDMGEXP)
+````
+Each of these values describes how much to multiply their respective damage totals by to get the full figure.  For more information on these variables and their values, (please refer to this excellent analysis.)[https://rstudio-pubs-static.s3.amazonaws.com/58957_37b6723ee52b455990e149edde45e5b6.html]
+
+
+Now, I'll clean up the damage costs data:
+````{r echo=TRUE, cache=TRUE}
+###Creating new variable describing property damage figure by applying the exponential 
+###description in PROPDMGEXP to the numbers in PROPDMG
+damage$propnumber<-NA
+##create values for new variable (propnumber) by multiplying PROPDMG by exponent
+##described in PROPDMGEXP
+damage$propmultiplier[damage$PROPDMGEXP == "K"] <- 1000
+damage$propmultiplier[damage$PROPDMGEXP == "M"] <- 1e+06
+damage$propmultiplier[damage$PROPDMGEXP == ""] <- 1
+damage$propmultiplier[damage$PROPDMGEXP == "B"] <- 1e+09
+damage$propmultiplier[damage$PROPDMGEXP == "m"] <- 1e+06
+damage$propmultiplier[damage$PROPDMGEXP == "0"] <- 1
+damage$propmultiplier[damage$PROPDMGEXP == "5"] <- 1e+05
+damage$propmultiplier[damage$PROPDMGEXP == "6"] <- 1e+06
+damage$propmultiplier[damage$PROPDMGEXP == "4"] <- 10000
+damage$propmultiplier[damage$PROPDMGEXP == "2"] <- 100
+damage$propmultiplier[damage$PROPDMGEXP == "3"] <- 1000
+damage$propmultiplier[damage$PROPDMGEXP == "h"] <- 100
+damage$propmultiplier[damage$PROPDMGEXP == "7"] <- 1e+07
+damage$propmultiplier[damage$PROPDMGEXP == "H"] <- 100
+damage$propmultiplier[damage$PROPDMGEXP == "1"] <- 10
+damage$propmultiplier[damage$PROPDMGEXP == "8"] <- 1e+08
+damage$propmultiplier[damage$PROPDMGEXP == "+"] <- 0
+damage$propmultiplier[damage$PROPDMGEXP == "-"] <- 0
+damage$propmultiplier[damage$PROPDMGEXP == "?"] <- 0
+damage$propnumber <- damage$PROPDMG * damage$propmultiplier
+
+
+###Creating new variable describing property damage figure by apply the exponential 
+###description in CROPDMGEXP to the numbers in CROPDMG
+damage$cropnumber<-NA
+
+##create values for new variable (cropnumber) by multiplying CROPDMG by exponent
+##described in CROPDMGEXP
+damage$cropmultiplier[damage$CROPDMGEXP == "M"] <- 1e+06
+damage$cropmultiplier[damage$CROPDMGEXP == "K"] <- 1000
+damage$cropmultiplier[damage$CROPDMGEXP == "m"] <- 1e+06
+damage$cropmultiplier[damage$CROPDMGEXP == "B"] <- 1e+09
+damage$cropmultiplier[damage$CROPDMGEXP == "0"] <- 1
+damage$cropmultiplier[damage$CROPDMGEXP == "k"] <- 1000
+damage$cropmultiplier[damage$CROPDMGEXP == "2"] <- 100
+damage$cropmultiplier[damage$CROPDMGEXP == ""] <- 1
+damage$cropmultiplier[damage$CROPDMGEXP == "?"] <- 0
+damage$cropnumber <- damage$CROPDMG * damage$cropmultiplier
+````
+
+**Evaluating Means and Sums**
+````{r echo=TRUE}
+#########   Mean    ###############################
+##creating a new dataframe with the means of damage
+mean.property<-damage %>%
+  group_by(EVTYPE) %>%
+  summarize(mean.property = mean(propnumber, na.rm=TRUE))
+
+mean.crops<-damage %>%
+  group_by(EVTYPE) %>%
+  summarize(mean.crops = mean(cropnumber, na.rm=TRUE))
+
+##Creating variables to track ranking of property and crop damage in dataframe
+mean.property$prop.rank<-rank(-mean.property$mean.property, ties.method = "first")
+mean.crops$crop.rank<-rank(-mean.crops$mean.crops, ties.method = "first")
+
+##ordering rows by property damage ranking
+top10.propmean<-mean.property %>%
+  filter(prop.rank<11) %>%
+  arrange(prop.rank)
+
+##ordering rows by crop damage ranking
+top10.cropmean<-mean.crops %>%
+  filter(crop.rank<11) %>%
+  arrange(crop.rank)
+
+#########   SUM    ###############################
+##creating a new dataframe with the sums of damage
+sum.property<-damage %>%
+  group_by(EVTYPE) %>%
+  summarize(sum.property = sum(propnumber, na.rm=TRUE))
+
+sum.crops<-damage %>%
+  group_by(EVTYPE) %>%
+  summarize(sum.crops = sum(cropnumber, na.rm=TRUE))
+
+##Creating variables to track ranking of property and crop damage in dataframe
+sum.property$prop.rank<-rank(-sum.property$sum.property, ties.method = "first")
+sum.crops$crop.rank<-rank(-sum.crops$sum.crops, ties.method = "first")
+
+##ordering rows by property damage ranking
+top10.propsum<-sum.property %>%
+  filter(prop.rank<11) %>%
+  arrange(prop.rank)
+
+##ordering rows by crop damage ranking
+top10.cropsum<-sum.crops %>%
+  filter(crop.rank<11) %>%
+  arrange(crop.rank)
+
+````
+
+
+##5. Results
+
+####**5.1 Question 1**
+
+**Top 10 most harmful events to human health (average per event)**
+````{r echo=TRUE}
+##initial look at the means results
+t.fat.mean<-head(top10.fatal, 10)
+t.inj.mean<-head(top10.injure, 10)
+kable(list(t.fat.mean, t.inj.mean))
+````
+
+
+**Top 10 most harmful events to human health (total)**
+````{r echo=TRUE}
+##initial look at the means results
+t.fat.sum<-head(top10.fatal.sum, 10)
+t.inj.sum<-head(top10.injure.sum, 10)
+kable(list(t.fat.sum, t.inj.sum))
+````
+
+
+**Plotting the results:**
+````{r echo=TRUE, fig.width=10, fig.height=10}
+##plotting means
+plot.fatal.avg<-top10.fatal[,c(1,2)]
+plot.injure.avg<-top10.injure[,c(1,2)]
+
+fat.meanplot<-ggplot(plot.fatal.avg, aes(x=reorder(EVTYPE,-avg.fatalities), y=avg.fatalities))+
+  geom_bar(stat = "identity", color="black", fill="#483C32") +
+  labs(x="Weather Events", y=expression("Average Number of Deaths"), 
+       title = expression("Top 10 Most Deadly Weather Events--Means"),
+       subtitle = expression("based on average deaths per event type"))+
+  theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
+
+inj.meanplot<-ggplot(plot.injure.avg, aes(x=reorder(EVTYPE,-avg.injuries), y=avg.injuries))+
+  geom_bar(stat = "identity", color="black", fill="#008080") +
+  labs(x="Weather Events", y=expression("Average Number Injured"), 
+       title = expression("Top 10 Most Injurious Weather Events--Means"),
+       subtitle = expression("based on average injuries per event type"))+
+  theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
+
+
+##plotting sums
+plot.fatal.sum<-top10.fatal.sum[,c(1,2)]
+plot.injure.sum<-top10.injure.sum[,c(1,2)]
+
+
+fat.sumplot<-ggplot(plot.fatal.sum, aes(x=reorder(EVTYPE,-total.fatalities), y=total.fatalities))+
+  geom_bar(stat = "identity", color="black", fill="#483C32") +
+  labs(y=expression("Total Number of Deaths"), 
+       title = expression("Top 10 Most Deadly Weather Events--Sums"),
+       subtitle = expression("based on total deaths per event type"))+
+  theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
+
+
+inj.sumplot<-ggplot(plot.injure.sum, aes(x=reorder(EVTYPE,-total.injuries), y=total.injuries))+
+  geom_bar(stat = "identity", color="black", fill="#008080") +
+  labs(y=expression("Total Number Injured"), 
+       title = expression("Top 10 Most Injurious Weather Events--Sums"),
+       subtitle = expression("based on total injuries per event type"))+
+  theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
+
+grid.arrange(fat.meanplot, inj.meanplot, fat.sumplot, inj.sumplot, ncol=2)
+
+````
+
+
+**Question 2--The Results**
+
+**Top 10 most damaging events in terms of property and crops (average per event)**
+````{r echo=TRUE}
+##viewing results
+t.propmean<-head(top10.propmean, 10)
+t.cropmean<-head(top10.cropmean, 10)
+kable(list(t.propmean, t.cropmean))
+````
+
+
+**Top 10 most damaging events in terms of property and crops (total)**
+````{r echo=TRUE}
+##viewing results
+t.propsum<-head(top10.propsum, 10)
+t.cropsum<-head(top10.cropsum, 10)
+kable(list(t.propsum, t.cropsum))
+````
+
+
+````{r echo=TRUE, fig.width=10, fig.height=10}
+##plotting the results
+
+##plotting means
+plot.propmean<-top10.propmean[,c(1,2)]
+plot.propmean$mean.property<-plot.propmean$mean.property/10^9
+plot.cropmean<-top10.cropmean[,c(1,2)]
+plot.cropmean$mean.crops<-plot.cropmean$mean.crops/10^9
+
+prop.meanplot<-ggplot(plot.propmean, aes(x=reorder(EVTYPE,-mean.property), y=mean.property)) +
+  geom_bar(stat = "identity", color="black", fill="#556B2F") +
+  labs(x="Weather Events", y=expression("Average Property Damage in Billions of Dollars"), 
+       title = expression("Top 10 Worst Weather Events in Property Damage"),
+       subtitle = expression("based on average property damage per event type"))+
+  theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
+
+crop.meanplot<-ggplot(plot.cropmean, aes(x=reorder(EVTYPE,-mean.crops), y=mean.crops)) +
+  geom_bar(stat = "identity", color="black", fill="#f88379") +
+  labs(x="Weather Events", y=expression("Average Crop Damage in Billions of Dollars"), 
+       title = expression("Top 10 Worst Weather Events in Crop Damage"),
+       subtitle = expression("based on average crop damage per event type"))+
+  theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
+
+##plotting sums
+plot.propsum<-top10.propsum[,c(1,2)]
+plot.propsum$sum.property<-plot.propsum$sum.property/10^9
+plot.cropsum<-top10.cropsum[,c(1,2)]
+plot.cropsum$sum.crops<-plot.cropsum$sum.crops/10^9
+
+prop.sumplot<-ggplot(plot.propsum, aes(x=reorder(EVTYPE,-sum.property), y=sum.property)) +
+  geom_bar(stat = "identity", color="black", fill="#556B2F") +
+  labs(x="Weather Events", y=expression("Total Property Damage in Billions of Dollars"), 
+       title = expression("Top 10 Worst Weather Events in Property Damage"),
+       subtitle = expression("based on total property damage per event type"))+
+  theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
+
+crop.sumplot<-ggplot(plot.cropsum, aes(x=reorder(EVTYPE,-sum.crops), y=sum.crops)) +
+  geom_bar(stat = "identity", color="black", fill="#f88379") +
+  labs(x="Weather Events", y=expression("Total Crop Damage in Billions of Dollars"), 
+       title = expression("Top 10 Worst Weather Events in Crop Damage"),
+       subtitle = expression("based on total crop damage per event type"))+
+  theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
+
+grid.arrange(prop.meanplot,crop.meanplot,prop.sumplot,crop.sumplot, ncol=2)
+````
+
+
+##6. Analysis
+For this section, I will concentrate on the sum results for both questions.  The means results is interesting because it presents what can do the most harm/damge per unique event.  But individual weather events are often difficult to predict with percision in terms of intensity and location.  This makes response to individual events more an effort towards recovery than towards preempting harm/damage.  The sums, on the otherhand, offer a pattern on larger scale and is better aligned with efforts towards creating a national strategy for limiting the impact of extreme weather events.
+
+**Question 1**
+
+The top five events for impacting human health all fall under two categories:  extremely focused, violent events (tornadoes, lightening, flash floods) or extreme heat.  For the focused events, preemptive strategies could include looking at appropriate shelter and evacuation when these events are most likely to occur.
+
+Extreme heat, on the other hand, impacts vulnerable populations such as the elderly and infirm.  Any national strategy would have to include additional focus and support for this demographic to insure their safety during peak heat periods.
+
+**Question 2**
+
+Outside of tornadic activity, the top five events for causing damage to both property and crops are related to preciptation.  A national strategy would require infrastructure investment to offset the risk of these events.  For drought, building and improving resevoirs to bolster access to water for crops during dry periods is clearly essential to a long-term strategy. Levies and other types of structures to prevent flooding and to contain or redirect excess water.
+
+*Note: In these results, there is damage recorded for "hurricane" and for "hurricane/typhoon".  The NOAA documentation does not indicitate an intentional distinction between the two events, which suggests it is the result of a recording error/inconsistency.  Furthermore, this suggests that there could be other errors among other event types.  There are 516 different types used in the EVTYPE variable.  Each type would have to be hand checked and researched in order to insure the data is tidy.  This is outside the time limitations of this particular assignment, but should be considered in future projects.*
+
+##7. Directions For Further Research
+
+**1. Region and Geography Type**
+
+The NOAA data set includes geographic markers for the events recorded.  This opens the door for looking at what weather regions impact specific regions and geographic types (mountainous, shoreline, plains, etc).  This type of research could have a significant impact on focusing preparation efforts to limit the impact of severe weather events, as well as improve recovery efforts by better pre-aligning assets.
+
+**2.  Examine Time of Year**
+
+By looking at which events are most common (and most impactful) by time of year, resources can be better aligned over the course of a calendar year.  This is significant since government agencies and NGO's both are restricted by their budgets which are further restricted by the cycles of a fiscal year.
+
+**3. Longitudinal Examination of The Consequences of Climate Change**
+
+The best data in this data set is from 1996 on.  This puts comprehensive data collection when the impact of climate change was beginning to be noticible.  Looking at shifts in the consequences of global warming in human health and economic terms, as well as examining changes in the types, frequency and intensity of extreme weather events could yield valuable results.
