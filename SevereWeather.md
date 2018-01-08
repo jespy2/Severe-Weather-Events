@@ -5,9 +5,7 @@ output:
 ---
 
 ## Setup
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+
 
 <center> <h1>Corsera Data Science Specialization
 
@@ -62,20 +60,22 @@ Consider writing your report as if it were to be read by a government or municip
 
 ##4. Data Processing
 ###**4.1. Loading the libraries and data**
-````{r echo=TRUE, message=FALSE, warning=FALSE}
+
+```r
 library(dplyr)
 library(lubridate)
 library(ggplot2)
 library(gridExtra)
 library(knitr)
-````
-````{r echo=TRUE, cache=TRUE}
+```
+
+```r
 URL<-("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2")
 download.file(URL, "NOAA_Data.csv.bz2")
 NOAA.Data<-read.csv("NOAA_Data.csv.bz2")
 colnumb<-c(2,8,23,24,25,26,27,28)
 NOAA.Data<-NOAA.Data[,colnumb]
-````
+```
 
 ####**4.2 Question #1: Across the United States, which types of events (as indicated in the *EVTYPE* variable) are most harmful with respect to population health?**
 
@@ -84,7 +84,8 @@ In order to answer this question, I explored the data by first finding the means
 First step, create a dataset that retains only the needed variables and eliminates observations before 1996 when data first included all of the storm event types.  For example, between 1950 and 1954, tornadoes were the only storm type recorded to this database.  As a result, tornado activity dominates and skews the results of the following analysis when the full dataset is used.
 
 **Truncated data set to only hold observations from 1996 and later**
-````{r echo=TRUE, warning=FALSE}
+
+```r
 ##Creating dataframe that contains *only* date of event, event type, 
 ##number of fatalities and number of injuries
 harmcol<-c(1, 2, 3, 4)
@@ -93,11 +94,12 @@ most.harm<-NOAA.Data[,harmcol]
 most.harm$Date<-as.Date(most.harm$BGN_DATE, format = "%m/%d/%Y")
 most.harm$Year<-year(most.harm$Date)
 most.harm<-filter(most.harm, Year>1995)
-````
+```
 
 
 **Evaluating Means and Sums**
-````{r echo=TRUE}
+
+```r
 ###Exploring the mean of injuries/fatalities for weather events
 ##creating a new dataframe with the means of injuries/fatalities
 mean.fatalities<-most.harm %>%
@@ -147,7 +149,7 @@ top10.fatal.sum<-sum.fatalities %>%
 top10.injure.sum<-sum.injuries %>%
   filter(injure.rank<11) %>%
   arrange(injure.rank)
-````
+```
 
 
 ####**4.3 Question #2: Across the United States, which types of events have the greatest economic consequences?**
@@ -155,7 +157,8 @@ top10.injure.sum<-sum.injuries %>%
 As with the first question, I explored the data by first finding the means of property and crop damage per event type, and then by finding the sums.
 
 First step, create a dataset that retains only the needed variables and eliminates observations before 1996 (as explained above).
-````{r echo=TRUE}
+
+```r
 ##Creating dataframe that contains *only* date of event, event type, 
 ##and columns describing property and crop damage
 damcol<-c(1,2,5,6,7,8)
@@ -164,22 +167,37 @@ damage<-(NOAA.Data[,damcol])
 damage$Date<-as.Date(damage$BGN_DATE, format = "%m/%d/%Y")
 damage$Year<-year(damage$Date)
 damage<-filter(damage, Year>1995)
-````
+```
 
 
 **Tidying the data**
 Before continuing, the columns describing cost in dollars need to be tidied.  The property damage (PROPDMG) and crop damage (CROPDMG) variables are each modified by a variable that describe the exponential mulitiplier (PROPDMGEXP and CROPDMGEXP, respectively).  Here are the values for those variables:
-````{r echo=TRUE}
+
+```r
 ##Print unique values of PROPDMGEXP
 unique (damage$PROPDMGEXP)
+```
+
+```
+## [1] K   M B 0
+## Levels:  - ? + 0 1 2 3 4 5 6 7 8 B h H K m M
+```
+
+```r
 ##Print unique values of CROPDMGEXP
 unique (damage$CROPDMGEXP)
-````
+```
+
+```
+## [1] K   M B
+## Levels:  ? 0 2 B k K m M
+```
 Each of these values describes how much to multiply their respective damage totals by to get the full figure.  For more information on these variables and their values, (please refer to this excellent analysis.)[https://rstudio-pubs-static.s3.amazonaws.com/58957_37b6723ee52b455990e149edde45e5b6.html]
 
 
 Now, I'll clean up the damage costs data:
-````{r echo=TRUE, cache=TRUE}
+
+```r
 ###Creating new variable describing property damage figure by applying the exponential 
 ###description in PROPDMGEXP to the numbers in PROPDMG
 damage$propnumber<-NA
@@ -223,10 +241,11 @@ damage$cropmultiplier[damage$CROPDMGEXP == "2"] <- 100
 damage$cropmultiplier[damage$CROPDMGEXP == ""] <- 1
 damage$cropmultiplier[damage$CROPDMGEXP == "?"] <- 0
 damage$cropnumber <- damage$CROPDMG * damage$cropmultiplier
-````
+```
 
 **Evaluating Means and Sums**
-````{r echo=TRUE}
+
+```r
 #########   Mean    ###############################
 ##creating a new dataframe with the means of damage
 mean.property<-damage %>%
@@ -274,8 +293,7 @@ top10.propsum<-sum.property %>%
 top10.cropsum<-sum.crops %>%
   filter(crop.rank<11) %>%
   arrange(crop.rank)
-
-````
+```
 
 
 ##5. Results
@@ -283,25 +301,110 @@ top10.cropsum<-sum.crops %>%
 ####**5.1 Question 1**
 
 **Top 10 most harmful events to human health (average per event)**
-````{r echo=TRUE}
+
+```r
 ##initial look at the means results
 t.fat.mean<-head(top10.fatal, 10)
 t.inj.mean<-head(top10.injure, 10)
 kable(list(t.fat.mean, t.inj.mean))
-````
+```
+
+
+
+<table class="kable_wrapper">
+<tbody>
+  <tr>
+   <td> 
+
+EVTYPE                  avg.fatalities   fatal.rank
+---------------------  ---------------  -----------
+COLD AND SNOW                14.000000            1
+Heavy surf and wind           3.000000            2
+ROUGH SEAS                    2.666667            3
+COLD WEATHER                  2.000000            4
+TSUNAMI                       1.650000            5
+HIGH WATER                    1.500000            6
+Hypothermia/Exposure          1.333333            7
+EXCESSIVE HEAT                1.085145            8
+COASTALSTORM                  1.000000            9
+Cold Temperature              1.000000           10
+
+ </td>
+   <td> 
+
+EVTYPE                    avg.injuries   injure.rank
+-----------------------  -------------  ------------
+Heat Wave                     70.00000             1
+HURRICANE/TYPHOON             14.48864             2
+WINTER WEATHER MIX            11.33333             3
+GLAZE                         10.09524             4
+NON-SEVERE WIND DAMAGE         7.00000             5
+SNOW SQUALL                    7.00000             6
+TSUNAMI                        6.45000             7
+Torrential Rainfall            4.00000             8
+EXCESSIVE HEAT                 3.85930             9
+MIXED PRECIP                   2.60000            10
+
+ </td>
+  </tr>
+</tbody>
+</table>
 
 
 **Top 10 most harmful events to human health (total)**
-````{r echo=TRUE}
+
+```r
 ##initial look at the means results
 t.fat.sum<-head(top10.fatal.sum, 10)
 t.inj.sum<-head(top10.injure.sum, 10)
 kable(list(t.fat.sum, t.inj.sum))
-````
+```
+
+
+
+<table class="kable_wrapper">
+<tbody>
+  <tr>
+   <td> 
+
+EVTYPE            total.fatalities   fatal.rank
+---------------  -----------------  -----------
+EXCESSIVE HEAT                1797            1
+TORNADO                       1511            2
+FLASH FLOOD                    887            3
+LIGHTNING                      651            4
+FLOOD                          414            5
+RIP CURRENT                    340            6
+TSTM WIND                      241            7
+HEAT                           237            8
+HIGH WIND                      235            9
+AVALANCHE                      223           10
+
+ </td>
+   <td> 
+
+EVTYPE               total.injuries   injure.rank
+------------------  ---------------  ------------
+TORNADO                       20667             1
+FLOOD                          6758             2
+EXCESSIVE HEAT                 6391             3
+LIGHTNING                      4141             4
+TSTM WIND                      3629             5
+FLASH FLOOD                    1674             6
+THUNDERSTORM WIND              1400             7
+WINTER STORM                   1292             8
+HURRICANE/TYPHOON              1275             9
+HEAT                           1222            10
+
+ </td>
+  </tr>
+</tbody>
+</table>
 
 
 **Plotting the results:**
-````{r echo=TRUE, fig.width=10, fig.height=10}
+
+```r
 ##plotting means
 plot.fatal.avg<-top10.fatal[,c(1,2)]
 plot.injure.avg<-top10.injure[,c(1,2)]
@@ -342,31 +445,117 @@ inj.sumplot<-ggplot(plot.injure.sum, aes(x=reorder(EVTYPE,-total.injuries), y=to
   theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
 
 grid.arrange(fat.meanplot, inj.meanplot, fat.sumplot, inj.sumplot, ncol=2)
+```
 
-````
+![](SevereWeather_files/figure-html/unnamed-chunk-11-1.png)<!-- -->
 
 
 **Question 2--The Results**
 
 **Top 10 most damaging events in terms of property and crops (average per event)**
-````{r echo=TRUE}
+
+```r
 ##viewing results
 t.propmean<-head(top10.propmean, 10)
 t.cropmean<-head(top10.cropmean, 10)
 kable(list(t.propmean, t.cropmean))
-````
+```
+
+
+
+<table class="kable_wrapper">
+<tbody>
+  <tr>
+   <td> 
+
+EVTYPE                       mean.property   prop.rank
+--------------------------  --------------  ----------
+HURRICANE/TYPHOON                787566364           1
+STORM SURGE                      170725439           2
+HURRICANE                         69487171           3
+TYPHOON                           54566364           4
+STORM SURGE/TIDE                  31359378           5
+River Flooding                    21231000           6
+COASTAL  FLOODING/EROSION         15000000           7
+Heavy Rain/High Surf              13500000           8
+TROPICAL STORM                    11205976           9
+Erosion/Cstl Flood                 8100000          10
+
+ </td>
+   <td> 
+
+EVTYPE                 mean.crops   crop.rank
+--------------------  -----------  ----------
+Early Frost              42000000           1
+HURRICANE/TYPHOON        29634918           2
+Damaging Freeze          17065000           3
+HURRICANE                16125941           4
+Extreme Cold             10000000           5
+AGRICULTURAL FREEZE       9606667           6
+River Flooding            5604000           7
+DROUGHT                   5494273           8
+Freeze                    5250000           9
+Unseasonable Cold         5100000          10
+
+ </td>
+  </tr>
+</tbody>
+</table>
 
 
 **Top 10 most damaging events in terms of property and crops (total)**
-````{r echo=TRUE}
+
+```r
 ##viewing results
 t.propsum<-head(top10.propsum, 10)
 t.cropsum<-head(top10.cropsum, 10)
 kable(list(t.propsum, t.cropsum))
-````
+```
 
 
-````{r echo=TRUE, fig.width=10, fig.height=10}
+
+<table class="kable_wrapper">
+<tbody>
+  <tr>
+   <td> 
+
+EVTYPE               sum.property   prop.rank
+------------------  -------------  ----------
+FLOOD                143944833550           1
+HURRICANE/TYPHOON     69305840000           2
+STORM SURGE           43193536000           3
+TORNADO               24616945710           4
+FLASH FLOOD           15222203910           5
+HAIL                  14595143420           6
+HURRICANE             11812819010           7
+TROPICAL STORM         7642475550           8
+HIGH WIND              5247860360           9
+WILDFIRE               4758667000          10
+
+ </td>
+   <td> 
+
+EVTYPE                 sum.crops   crop.rank
+------------------  ------------  ----------
+DROUGHT              13367566000           1
+FLOOD                 4974778400           2
+HURRICANE             2741410000           3
+HURRICANE/TYPHOON     2607872800           4
+HAIL                  2476029450           5
+FLASH FLOOD           1334901700           6
+EXTREME COLD          1288973000           7
+FROST/FREEZE          1094086000           8
+HEAVY RAIN             728169800           9
+TROPICAL STORM         677711000          10
+
+ </td>
+  </tr>
+</tbody>
+</table>
+
+
+
+```r
 ##plotting the results
 
 ##plotting means
@@ -410,7 +599,9 @@ crop.sumplot<-ggplot(plot.cropsum, aes(x=reorder(EVTYPE,-sum.crops), y=sum.crops
   theme(axis.text.x=element_text(angle=90,hjust=1), axis.title.x=element_blank())
 
 grid.arrange(prop.meanplot,crop.meanplot,prop.sumplot,crop.sumplot, ncol=2)
-````
+```
+
+![](SevereWeather_files/figure-html/unnamed-chunk-14-1.png)<!-- -->
 
 
 ##6. Analysis
